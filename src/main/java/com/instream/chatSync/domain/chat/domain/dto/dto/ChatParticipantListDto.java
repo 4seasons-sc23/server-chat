@@ -2,7 +2,7 @@ package com.instream.chatSync.domain.chat.domain.dto.dto;
 
 import java.util.List;
 
-public record ChatParticipantDto(
+public record ChatParticipantListDto(
     String sessionId,
     List<String> participantId
 ) {}
