@@ -1,17 +1,13 @@
 package com.instream.chatSync.domain.chat.service;
 
-import jakarta.annotation.PostConstruct;
+import com.instream.chatSync.domain.chat.domain.dto.request.ChatBillingRequestDto;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.Queue;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
@@ -19,6 +15,11 @@ import reactor.core.publisher.Flux;
 @Service
 public class MessageStorageService {
     private final ConcurrentHashMap<String, Queue<List<String>>> messageQueues = new ConcurrentHashMap<>();
+    private final BillingService billingService;
+
+    public MessageStorageService(BillingService billingService) {
+        this.billingService = billingService;
+    }
 
     public void addMessage(String sessionId, String message) {
         Queue<List<String>> sessionQueue = messageQueues.computeIfAbsent(sessionId, k -> {
@@ -40,15 +41,32 @@ public class MessageStorageService {
 
     public Flux<ServerSentEvent<List<String>>> streamMessages(String sessionId) {
         return Flux.interval(Duration.ofSeconds(1))
-            .map(tick -> {
+            .flatMap(tick -> {
                 Queue<List<String>> msgQueue = messageQueues.getOrDefault(sessionId, new ConcurrentLinkedQueue<>());
                 List<String> messages = msgQueue.poll();
                 if (messages == null) {
-                    messages = new ArrayList<>(); // 새로운 빈 배열 생성
+                    messages = new ArrayList<>();
                 }
                 msgQueue.add(new ArrayList<>()); // 다음 메시지를 위한 새 빈 배열 큐에 추가
-                return messages;
-            })
-            .map(batch -> ServerSentEvent.<List<String>>builder().data(batch).build());
+
+                ChatBillingRequestDto billingRequestDto = ChatBillingRequestDto.builder()
+                    .sessionId(UUID.fromString(sessionId))
+                    .count(messages.size())
+                    .build();
+
+                return billingService.postChatBilling(billingRequestDto)
+                    .thenReturn(ServerSentEvent.<List<String>>builder().data(messages).build());
+            });
+//        return Flux.interval(Duration.ofSeconds(1))
+//            .map(tick -> {
+//                Queue<List<String>> msgQueue = messageQueues.getOrDefault(sessionId, new ConcurrentLinkedQueue<>());
+//                List<String> messages = msgQueue.poll();
+//                if (messages == null) {
+//                    messages = new ArrayList<>(); // 새로운 빈 배열 생성
+//                }
+//                msgQueue.add(new ArrayList<>()); // 다음 메시지를 위한 새 빈 배열 큐에 추가
+//                return messages;
+//            })
+//            .map(batch -> ServerSentEvent.<List<String>>builder().data(batch).build());
     }
 }
