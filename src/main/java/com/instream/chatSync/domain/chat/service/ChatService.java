@@ -2,45 +2,43 @@ package com.instream.chatSync.domain.chat.service;
 
 import com.instream.chatSync.domain.chat.domain.dto.SubscriptionRegistry;
 import com.instream.chatSync.domain.chat.domain.dto.request.ChatConnectRequestDto;
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.data.redis.listener.ChannelTopic;
-import org.springframework.data.redis.listener.RedisMessageListenerContainer;
-import org.springframework.data.redis.listener.adapter.MessageListenerAdapter;
+import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.Sinks;
 
 @Service
 public class ChatService {
-    @Autowired
-    private RedisMessageListenerContainer redisContainer;
+    private final ReactiveRedisTemplate<String, String> reactiveStringRedisTemplate;
+    private final MessageStorageService messageStorageService;
 
     @Autowired
-    private MessageListenerAdapter messageListener;
-
-    @Autowired
-    private SubscriptionRegistry subscriptionRegistry;
-
-    public void subscribeToSession(String sessionId, String participantId) {
-        // 구독자 추가
-        subscriptionRegistry.addSubscriber(sessionId, participantId);
-    }
-
-    public void unsubscribeFromSession(String sessionId, String participantId) {
-        // 구독자 제거
-        subscriptionRegistry.removeSubscriber(sessionId, participantId);
-    }
-
-    public List<String> getSessionSubscribers(String sessionId) {
-        // 특정 세션의 구독자 목록 조회
-        return subscriptionRegistry.getSubscribers(sessionId);
+    public ChatService(ReactiveRedisTemplate<String, String> reactiveStringRedisTemplate,
+        MessageStorageService messageStorageService) {
+        this.reactiveStringRedisTemplate = reactiveStringRedisTemplate;
+        this.messageStorageService = messageStorageService;
     }
 
     public Mono<Void> postConnection(ChatConnectRequestDto connectRequestDto) {
-        ChannelTopic topic = new ChannelTopic(connectRequestDto.sessionId());
-        this.subscribeToSession(connectRequestDto.sessionId(), connectRequestDto.participantId());
-        redisContainer.addMessageListener(messageListener, topic);
-        System.out.println(getSessionSubscribers(connectRequestDto.sessionId()));
-        return Mono.empty();
+        return Mono.fromRunnable(() -> {
+            ChannelTopic topic = new ChannelTopic(connectRequestDto.sessionId());
+            reactiveStringRedisTemplate.listenTo(topic)
+                .doOnNext(message -> messageStorageService.addMessage(connectRequestDto.sessionId(), message.getMessage()))
+                .subscribe();
+        }).then();
+    }
+
+    public Flux<ServerSentEvent<List<String>>> streamMessages(String sessionId) {
+        return messageStorageService.streamMessages(sessionId);
     }
 }
