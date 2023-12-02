@@ -36,7 +36,6 @@ public class MessageStorageService {
         }
 
         currentMessages.add(message);
-//        System.out.println(currentMessages);
     }
 
     public Flux<ServerSentEvent<List<String>>> streamMessages(String sessionId) {

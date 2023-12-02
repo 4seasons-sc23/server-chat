@@ -1,13 +1,7 @@
 package com.instream.chatSync.domain.chat.service;
 
-import com.instream.chatSync.domain.chat.domain.dto.SubscriptionRegistry;
-import com.instream.chatSync.domain.chat.domain.dto.request.ChatConnectRequestDto;
-import java.time.Duration;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.data.redis.listener.ChannelTopic;
@@ -16,7 +10,6 @@ import org.springframework.stereotype.Service;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.core.publisher.Sinks;
 
 @Service
 public class ChatService {
@@ -32,14 +25,14 @@ public class ChatService {
         this.messageStorageService = messageStorageService;
     }
 
-    public Mono<Void> postConnection(ChatConnectRequestDto connectRequestDto) {
+    public Mono<Void> postConnection(String sessionId) {
         return Mono.fromRunnable(() -> {
-            ChannelTopic topic = new ChannelTopic(connectRequestDto.sessionId());
-            if(!subscribeSessionList.containsKey(connectRequestDto.sessionId())) {
+            ChannelTopic topic = new ChannelTopic(sessionId);
+            if(!subscribeSessionList.containsKey(sessionId)) {
                 Disposable disposable = reactiveStringRedisTemplate.listenTo(topic)
-                    .doOnNext(message -> messageStorageService.addMessage(connectRequestDto.sessionId(), message.getMessage()))
+                    .doOnNext(message -> messageStorageService.addMessage(sessionId, message.getMessage()))
                     .subscribe();
-                subscribeSessionList.put(connectRequestDto.sessionId(), disposable);
+                subscribeSessionList.put(sessionId, disposable);
             }
         }).then();
     }
