@@ -19,24 +19,11 @@ public class ChatConfig {
         ChatHandler chatHandler) {
         return route().nest(RequestPredicates.path("/v1/chats"),
             builder -> {
-//                builder.add(postConnection(chatHandler));
                 builder.add(getMessageList(chatHandler));
             },
             ops -> ops.operationId("919")
         ).build();
     }
-
-//        private RouterFunction<ServerResponse> postConnection(ChatHandler chatHandler) {
-//            return route()
-//                .POST(
-//                    "/sse-connect",
-//                    chatHandler::postConnection,
-//                    ops -> ops.operationId("919")
-//                        .requestBody(requestBodyBuilder().implementation(ChatConnectRequestDto.class).required(true))
-//                        .response(responseBuilder().responseCode(HttpStatus.CREATED.name()))
-//                )
-//                .build();
-//        }
 
         private RouterFunction<ServerResponse> getMessageList(ChatHandler chatHandler) {
             return route()
