@@ -13,6 +13,7 @@ import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.data.redis.listener.ChannelTopic;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.stereotype.Service;
+import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
@@ -21,6 +22,8 @@ import reactor.core.publisher.Sinks;
 public class ChatService {
     private final ReactiveRedisTemplate<String, String> reactiveStringRedisTemplate;
     private final MessageStorageService messageStorageService;
+    private final ConcurrentHashMap<String, Disposable> subscribeSessionList = new ConcurrentHashMap<>();
+
 
     @Autowired
     public ChatService(ReactiveRedisTemplate<String, String> reactiveStringRedisTemplate,
@@ -32,9 +35,12 @@ public class ChatService {
     public Mono<Void> postConnection(ChatConnectRequestDto connectRequestDto) {
         return Mono.fromRunnable(() -> {
             ChannelTopic topic = new ChannelTopic(connectRequestDto.sessionId());
-            reactiveStringRedisTemplate.listenTo(topic)
-                .doOnNext(message -> messageStorageService.addMessage(connectRequestDto.sessionId(), message.getMessage()))
-                .subscribe();
+            if(!subscribeSessionList.containsKey(connectRequestDto.sessionId())) {
+                Disposable disposable = reactiveStringRedisTemplate.listenTo(topic)
+                    .doOnNext(message -> messageStorageService.addMessage(connectRequestDto.sessionId(), message.getMessage()))
+                    .subscribe();
+                subscribeSessionList.put(connectRequestDto.sessionId(), disposable);
+            }
         }).then();
     }
 

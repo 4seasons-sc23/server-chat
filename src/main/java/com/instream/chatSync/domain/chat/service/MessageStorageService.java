@@ -57,16 +57,5 @@ public class MessageStorageService {
                 return billingService.postChatBilling(billingRequestDto)
                     .thenReturn(ServerSentEvent.<List<String>>builder().data(messages).build());
             });
-//        return Flux.interval(Duration.ofSeconds(1))
-//            .map(tick -> {
-//                Queue<List<String>> msgQueue = messageQueues.getOrDefault(sessionId, new ConcurrentLinkedQueue<>());
-//                List<String> messages = msgQueue.poll();
-//                if (messages == null) {
-//                    messages = new ArrayList<>(); // 새로운 빈 배열 생성
-//                }
-//                msgQueue.add(new ArrayList<>()); // 다음 메시지를 위한 새 빈 배열 큐에 추가
-//                return messages;
-//            })
-//            .map(batch -> ServerSentEvent.<List<String>>builder().data(batch).build());
     }
 }

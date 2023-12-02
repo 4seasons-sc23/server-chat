@@ -13,7 +13,7 @@ public class BillingService {
 
     private final WebClient webClient;
 
-    @Value("${tenant.base.url}")
+    @Value("${tenant.base-url}")
     private String TENANT_BASE_URL;
 
     @Autowired
