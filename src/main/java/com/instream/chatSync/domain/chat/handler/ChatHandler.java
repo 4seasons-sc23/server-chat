@@ -21,9 +21,8 @@ public class ChatHandler {
     public Mono<ServerResponse> getMessageList(ServerRequest request) {
         String sessionId = request.pathVariable("sessionId");
         return chatService.postConnection(sessionId)
-            .then(ServerResponse.ok()
-                .contentType(MediaType.TEXT_EVENT_STREAM)
-                .body(chatService.streamMessages(sessionId), ServerSentEvent.class)
-            );
+                .then(ServerResponse.ok()
+                        .contentType(MediaType.TEXT_EVENT_STREAM)
+                        .body(chatService.streamMessages(sessionId), ServerSentEvent.class));
     }
 }
