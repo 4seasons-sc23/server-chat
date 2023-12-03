@@ -6,13 +6,6 @@ spring:
       password: ${REDIS_PASSWORD}
   webflux:
     base-path: /api
-server:
-  port: 8081
-
-logging:
-  level:
-    org.springframework: debug
-    com.instream.chatSync: DEBUG
 ---
 tenant:
   base-url: ${TENANT_BASE_URL}
