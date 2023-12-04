@@ -28,7 +28,7 @@
 
 ## 채팅 Sync 서버 아키텍쳐
 <div align="center">
-    <img src="./architecture/chat-sync-architecture.png", width="50%">
+    <img src="./architecture/chat-sync-architecture.png" width="50%" alt="chat-sync-server-architecutre">
 </div>
 
 ## 주요 기능
