@@ -1,5 +1,5 @@
 <div align=center>
-	<img src="https://capsule-render.vercel.app/api?type=waving&color=auto&height=200&section=header&text=Chat%20Sync%20Server&fontSize=90" />	
+	<img src="https://capsule-render.vercel.app/api?type=waving&color=auto&height=200&section=header&text=Chat%20Sync%20Server&fontSize=80&fontAlignY=36" />	
 </div>
 <div align=center>
 	<h3>📚 Tech Stack 📚</h3>
@@ -26,9 +26,14 @@
 <br/>
 주요 기능은 다음과 같습니다.
 
+## 채팅 Sync 서버 아키텍쳐
+<div align="center">
+    <img src="./architecture/chat-sync-architecture.png", width="50%">
+</div>
+
 ## 주요 기능
-+ redis pub/sub를 사용한 채팅방 연결 및 관리
-+ sse를 사용한 채팅 메시지 전송
++ redis pub/sub를 사용한 채팅방 연결 및 관리 
++ sse를 사용하여 클라이언트로 채팅 메시지 전송
 
 ## 서버 실행
 
