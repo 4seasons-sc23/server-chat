@@ -22,18 +22,26 @@
 <br>
 
 ## 개요
-4학년 2학기 SW캡스톤디자인 "실시간 라이브 스트리밍 SaaS" 프로젝트 중 채팅 sync 서버 프로젝트입니다.
+실시간 라이브 스트리밍 SaaS 프로젝트 "Instream" 중 채팅 sync 서버 프로젝트입니다.
 <br/>
-주요 기능은 다음과 같습니다.
+<br/>
 
 ## 채팅 Sync 서버 아키텍쳐
 <div align="center">
-    <img src="./architecture/chat-sync-architecture.png" width="50%" alt="chat-sync-server-architecutre">
+    <img src="./architecture/chat-sync-architecture.png" width="300" alt="chat-sync-server-architecutre">
 </div>
 
 ## 주요 기능
 + redis pub/sub를 사용한 채팅방 연결 및 관리 
 + sse를 사용하여 클라이언트로 채팅 메시지 전송
+</br>
+
+## 주요 특징
++ 클라이언트 측 UX를 고려한 대규모 데이터 렌더링 설계
+  + 로컬 메모리에 채팅 저장 후 초당 일정 횟수로 사용자에게 채팅 제공
++ pub/sub을 통한 확장 가능한 구조
++ 같은 채팅그룹에 대한 sticky 설정 제공
+<br/>
 
 ## 서버 실행
 
