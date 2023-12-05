@@ -58,7 +58,7 @@ SSE를 통해 각 세션별 채팅 참가자에게 채팅을 전파하는 기능
   + SSE 소켓 리스트를 순회하면서, 임시 복사된 메세지 리스트를 deep copy하여 메세지 전파
   + 메세지 전파할 때 deep copy를 사용해 thread가 서로 침범하지 않는 환경이 보장되므로 parallelStream으로 병렬 처리하여 속도 향상
 + Multi-threading 환경을 대비하여 Concurrent 자료구조 사용
-  + 채팅 전파 시점을 기준으로 Capturing 된 메세지를 전파 
+  + 채팅 전파 시점을 기준으로 Concurrent 자료구조에서 Capturing 된 메세지를 전파 
   + Redis에서 새로운 메세지를 통합 메세지큐에 추가하더라도, 해당 메세지는 다음 채팅 전파 스케쥴 때 사용
   + Capturing 된 메세지 개수를 바탕으로 사용량 측정
 
