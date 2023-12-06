@@ -19,6 +19,7 @@ public class ChatService {
     private final ReactiveRedisTemplate<String, String> reactiveStringRedisTemplate;
     private final MessageStorageService messageStorageService;
     private final ConcurrentHashMap<String, Disposable> subscribeSessionList = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Disposable> endSessionList = new ConcurrentHashMap<>();
 
     @Autowired
     public ChatService(ReactiveRedisTemplate<String, String> reactiveStringRedisTemplate,
@@ -32,16 +33,27 @@ public class ChatService {
             if(!subscribeSessionList.containsKey(sessionId)) {
                 log.info("Create redis connection {}", sessionId);
                 ChannelTopic topic = new ChannelTopic(sessionId);
+                ChannelTopic closeTopic = new ChannelTopic(sessionId+"_END");
                 Disposable disposable = reactiveStringRedisTemplate.listenTo(topic)
                     .doOnNext(message -> messageStorageService.addMessage(sessionId, message.getMessage()))
                     .subscribe();
+                Disposable closeDisposable = reactiveStringRedisTemplate.listenTo(closeTopic)
+                    .doOnNext(message -> this.closeSession(message.getChannel()))
+                    .subscribe();
                 messageStorageService.addPublishFlux(sessionId);
                 subscribeSessionList.put(sessionId, disposable);
+                endSessionList.put(sessionId, closeDisposable);
             }
         }).then();
     }
 
     public Flux<ServerSentEvent<List<String>>> streamMessages(String sessionId) {
         return messageStorageService.streamMessages(sessionId);
+    }
+
+    public void closeSession(String endChannel) {
+        String endSessionId = endChannel.split("_END")[0];
+        subscribeSessionList.remove(endSessionId).dispose();
+        endSessionList.remove(endSessionId).dispose();
     }
 }
