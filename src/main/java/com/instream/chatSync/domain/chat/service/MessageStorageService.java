@@ -1,6 +1,13 @@
 package com.instream.chatSync.domain.chat.service;
 
 import com.instream.chatSync.domain.chat.domain.request.ChatBillingRequestDto;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.codec.ServerSentEvent;
+import org.springframework.stereotype.Service;
+import reactor.core.Disposable;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.core.publisher.Sinks;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -10,14 +17,6 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
-
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.codec.ServerSentEvent;
-import org.springframework.stereotype.Service;
-import reactor.core.Disposable;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
-import reactor.core.publisher.Sinks;
 
 @Service
 @Slf4j
@@ -34,14 +33,15 @@ public class MessageStorageService {
         this.billingService = billingService;
     }
 
-    public void addMessage(UUID sessionId, String message) {
+    public Mono<Void> addMessage(UUID sessionId, String message) {
         Queue<String> sessionQueue = messageQueues.computeIfAbsent(sessionId, k -> new ConcurrentLinkedQueue<>());
         sessionQueue.add(message);
+        return Mono.empty();
     }
 
-    public void addPublishFlux(UUID sessionId) {
+    public Mono<Void> addPublishFlux(UUID sessionId) {
         if (messagePublishFluxes.containsKey(sessionId)) {
-            return;
+            return Mono.empty();
         }
         Flux<Void> flux = Flux.interval(Duration.ofSeconds(1))
                 .flatMap(tick -> {
@@ -74,7 +74,7 @@ public class MessageStorageService {
 
         messagePublishFluxes.put(sessionId, flux.subscribe());
 
-
+        return Mono.empty();
     }
 
     public Flux<ServerSentEvent<List<String>>> streamMessages(UUID sessionId) {
