@@ -49,9 +49,9 @@ public class ChatRouterConfigTest {
                 ServerSentEvent.builder(new ChatDto("2", "nickname2", "profileUrl2", "메시지 2", LocalDateTime.now())).build(),
                 ServerSentEvent.builder(new ChatDto("3", "nickname3", "profileUrl3", "메시지 3", LocalDateTime.now())).build()
         );
-        Mockito.when(chatService.postConnection(sessionId.toString()))
+        Mockito.when(chatService.postConnection(sessionId))
                 .thenReturn(Mono.empty());
-        Mockito.when(chatService.streamMessages(sessionId.toString()))
+        Mockito.when(chatService.streamMessages(sessionId))
                 .thenAnswer(invocation -> Flux.fromIterable(sseMessages));
         // When
         FluxExchangeResult<String> result = webTestClient.get()
@@ -61,8 +61,10 @@ public class ChatRouterConfigTest {
                 .expectHeader().contentTypeCompatibleWith("text/event-stream")
                 .returnResult(String.class);
 
-
         // Then
+        Mockito.verify(chatService).postConnection(sessionId);
+        Mockito.verify(chatService).streamMessages(sessionId);
+
         StepVerifier.create(result.getResponseBody())
                 .expectNextMatches(jsonContainsMessage("메시지 1"))
                 .expectNextMatches(jsonContainsMessage("메시지 2"))

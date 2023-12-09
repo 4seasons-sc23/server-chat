@@ -22,11 +22,11 @@ import reactor.core.publisher.Sinks;
 @Service
 @Slf4j
 public class MessageStorageService {
-    private final ConcurrentHashMap<String, Queue<String>> messageQueues = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<UUID, Queue<String>> messageQueues = new ConcurrentHashMap<>();
 
-    private final ConcurrentHashMap<String, Disposable> messagePublishFluxes = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<UUID, Disposable> messagePublishFluxes = new ConcurrentHashMap<>();
 
-    private final ConcurrentHashMap<String, List<Sinks.Many<ServerSentEvent<List<String>>>>> sessionSockets = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<UUID, List<Sinks.Many<ServerSentEvent<List<String>>>>> sessionSockets = new ConcurrentHashMap<>();
 
     private final BillingService billingService;
 
@@ -34,12 +34,12 @@ public class MessageStorageService {
         this.billingService = billingService;
     }
 
-    public void addMessage(String sessionId, String message) {
+    public void addMessage(UUID sessionId, String message) {
         Queue<String> sessionQueue = messageQueues.computeIfAbsent(sessionId, k -> new ConcurrentLinkedQueue<>());
         sessionQueue.add(message);
     }
 
-    public void addPublishFlux(String sessionId) {
+    public void addPublishFlux(UUID sessionId) {
         if (messagePublishFluxes.containsKey(sessionId)) {
             return;
         }
@@ -77,7 +77,7 @@ public class MessageStorageService {
 
     }
 
-    public Flux<ServerSentEvent<List<String>>> streamMessages(String sessionId) {
+    public Flux<ServerSentEvent<List<String>>> streamMessages(UUID sessionId) {
         Sinks.Many<ServerSentEvent<List<String>>> sink = Sinks.many().multicast().directAllOrNothing();
         List<Sinks.Many<ServerSentEvent<List<String>>>> sockets = sessionSockets.computeIfAbsent(sessionId, k -> new CopyOnWriteArrayList<>());
         sockets.add(sink);
@@ -87,9 +87,9 @@ public class MessageStorageService {
         return sink.asFlux();
     }
 
-    private void billingChat(String sessionId, List<String> tempMessages) {
+    private void billingChat(UUID sessionId, List<String> tempMessages) {
         ChatBillingRequestDto billingRequestDto = ChatBillingRequestDto.builder()
-                .sessionId(UUID.fromString(sessionId))
+                .sessionId(sessionId)
                 .count(tempMessages.size())
                 .build();
         billingService.postChatBilling(billingRequestDto).subscribe();

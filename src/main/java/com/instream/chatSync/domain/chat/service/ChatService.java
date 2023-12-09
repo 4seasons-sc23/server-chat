@@ -1,6 +1,7 @@
 package com.instream.chatSync.domain.chat.service;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import lombok.extern.slf4j.Slf4j;
@@ -18,7 +19,7 @@ import reactor.core.publisher.Mono;
 public class ChatService {
     private final ReactiveRedisTemplate<String, String> reactiveStringRedisTemplate;
     private final MessageStorageService messageStorageService;
-    private final ConcurrentHashMap<String, Disposable> subscribeSessionList = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<UUID, Disposable> subscribeSessionList = new ConcurrentHashMap<>();
 
     @Autowired
     public ChatService(ReactiveRedisTemplate<String, String> reactiveStringRedisTemplate,
@@ -27,11 +28,11 @@ public class ChatService {
         this.messageStorageService = messageStorageService;
     }
 
-    public Mono<Void> postConnection(String sessionId) {
+    public Mono<Void> postConnection(UUID sessionId) {
         return Mono.fromRunnable(() -> {
             if(!subscribeSessionList.containsKey(sessionId)) {
                 log.info("Create redis connection {}", sessionId);
-                ChannelTopic topic = new ChannelTopic(sessionId);
+                ChannelTopic topic = new ChannelTopic(sessionId.toString());
                 Disposable disposable = reactiveStringRedisTemplate.listenTo(topic)
                     .doOnNext(message -> messageStorageService.addMessage(sessionId, message.getMessage()))
                     .subscribe();
@@ -41,7 +42,7 @@ public class ChatService {
         }).then();
     }
 
-    public Flux<ServerSentEvent<List<String>>> streamMessages(String sessionId) {
+    public Flux<ServerSentEvent<List<String>>> streamMessages(UUID sessionId) {
         return messageStorageService.streamMessages(sessionId);
     }
 }

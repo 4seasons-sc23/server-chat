@@ -3,8 +3,6 @@ package com.instream.chatSync.domain.error.handler;
 import com.instream.chatSync.domain.error.infra.enums.CommonHttpErrorCode;
 import com.instream.chatSync.domain.error.infra.enums.HttpErrorCode;
 import com.instream.chatSync.domain.error.model.exception.RestApiException;
-import java.util.Collections;
-import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.web.reactive.error.ErrorWebExceptionHandler;
@@ -20,6 +18,9 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
+
+import java.util.Collections;
+import java.util.List;
 
 @Component
 @Order(-2) // webflux default @Order(-1)
