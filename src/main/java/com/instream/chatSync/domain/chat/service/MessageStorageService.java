@@ -1,6 +1,6 @@
 package com.instream.chatSync.domain.chat.service;
 
-import com.instream.chatSync.domain.chat.domain.dto.request.ChatBillingRequestDto;
+import com.instream.chatSync.domain.chat.domain.request.ChatBillingRequestDto;
 
 import java.time.Duration;
 import java.util.ArrayList;

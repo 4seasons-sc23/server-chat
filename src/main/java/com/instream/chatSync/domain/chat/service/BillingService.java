@@ -1,6 +1,6 @@
 package com.instream.chatSync.domain.chat.service;
 
-import com.instream.chatSync.domain.chat.domain.dto.request.ChatBillingRequestDto;
+import com.instream.chatSync.domain.chat.domain.request.ChatBillingRequestDto;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
