@@ -1,13 +1,12 @@
 package com.instream.chatSync.domain.chat.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.reactivestreams.Subscription;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.redis.connection.ReactiveSubscription;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.data.redis.listener.ChannelTopic;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.stereotype.Service;
-import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -20,8 +19,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ChatService {
     private final ReactiveRedisTemplate<String, String> reactiveStringRedisTemplate;
     private final MessageStorageService messageStorageService;
-    private final ConcurrentHashMap<UUID, Disposable> subscribeSessionList = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<UUID, Disposable> endSessionList = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<UUID, Subscription> subscribeSessionList = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<UUID, Subscription> endSessionList = new ConcurrentHashMap<>();
 
 
     @Autowired
@@ -31,17 +30,16 @@ public class ChatService {
         this.messageStorageService = messageStorageService;
     }
 
+    /**
+     * Chat과 관련된 Redis Topic을 구독합니다.
+     * <p>
+     * ChatMessageTopic이 먼저 구독되어야 합니다. 그래야 Close event가 발생했을 때 올바르게 모든 subscribe를 종료시킬 수 있습니다.
+     * CloseTopic을 먼저 구독하면 ChatMessageTopic에 대한 subscribe를 종료시킬 수 없는 경우의 수가 생깁니다.
+     */
     public Mono<Void> postConnection(UUID sessionId) {
-        subscribeSessionList.computeIfAbsent(sessionId, key -> {
-            ChannelTopic chatTopic = new ChannelTopic(sessionId.toString());
-            ChannelTopic closeTopic = new ChannelTopic(sessionId + "_END");
-            Disposable chatDisposable = getRedisChatMessageTopicSubscribe(sessionId, chatTopic).subscribe();
-            Disposable closeDisposable = getRedisCloseMessageTopicSubscribe(closeTopic).subscribe();
+        getRedisChatMessageTopicSubscribe(sessionId);
+        getRedisCloseMessageTopicSubscribe(sessionId);
 
-            endSessionList.put(sessionId, closeDisposable);
-
-            return chatDisposable;
-        });
         return Mono.empty();
     }
 
@@ -49,21 +47,55 @@ public class ChatService {
         return messageStorageService.streamMessages(sessionId);
     }
 
-    private Flux<? extends ReactiveSubscription.Message<String, String>> getRedisChatMessageTopicSubscribe(UUID sessionId, ChannelTopic topic) {
-        return reactiveStringRedisTemplate.listenTo(topic)
-                .doOnNext(message -> messageStorageService.addMessage(sessionId, message.getMessage()))
-                .doOnSubscribe(subscription -> messageStorageService.addPublishFlux(sessionId));
+    /**
+     * ChatMessageTopic을 구독합니다.
+     *
+     * Race condition을 방지하기 위해서 동기화 블록을 사용합니다.
+     */
+    private void getRedisChatMessageTopicSubscribe(UUID sessionId) {
+        synchronized (this) {
+            if (subscribeSessionList.containsKey(sessionId)) {
+                return;
+            }
+
+            ChannelTopic topic = new ChannelTopic(sessionId.toString());
+            reactiveStringRedisTemplate.listenTo(topic)
+                    .doOnNext(message -> messageStorageService.addMessage(sessionId, message.getMessage()))
+                    .doOnSubscribe(subscription -> subscribeSessionList.computeIfAbsent(sessionId, key -> {
+                        messageStorageService.addPublishFlux(sessionId);
+                        return subscription;
+                    }))
+                    .subscribe();
+        }
     }
 
-    private Flux<? extends ReactiveSubscription.Message<String, String>> getRedisCloseMessageTopicSubscribe(ChannelTopic topic) {
-        return reactiveStringRedisTemplate.listenTo(topic)
-                .doOnNext(message -> this.closeSession(message.getChannel()));
+    /**
+     * CloseTopic을 구독합니다.
+     *
+     * Race condition을 방지하기 위해서 동기화 블록을 사용합니다.
+     */
+    private void getRedisCloseMessageTopicSubscribe(UUID sessionId) {
+        synchronized (this) {
+            if (endSessionList.containsKey(sessionId)) {
+                return;
+            }
+            ChannelTopic topic = new ChannelTopic(sessionId + "_END");
+            reactiveStringRedisTemplate.listenTo(topic)
+                    .doOnNext(message -> closeSession(message.getChannel()))
+                    .doOnSubscribe(subscription -> endSessionList.computeIfAbsent(sessionId, key -> subscription))
+                    .subscribe();
+        }
     }
 
     private void closeSession(String endChannel) {
         UUID endSessionId = UUID.fromString(endChannel.split("_END")[0]);
-        subscribeSessionList.remove(endSessionId).dispose();
-        endSessionList.remove(endSessionId).dispose();
+
+        if (subscribeSessionList.containsKey(endSessionId)) {
+            subscribeSessionList.remove(endSessionId).cancel();
+        }
+        if (endSessionList.containsKey(endSessionId)) {
+            endSessionList.remove(endSessionId).cancel();
+        }
     }
 }
 
