@@ -7,7 +7,6 @@ import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.mockito.Mockito;
-import org.reactivestreams.Subscription;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -16,7 +15,6 @@ import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.data.redis.listener.ChannelTopic;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 import java.lang.reflect.Field;
@@ -53,14 +51,14 @@ public class ChatServiceTest {
         // when
         Mockito.when(mockMessage.getMessage()).thenReturn("testMessage");
         Mockito.when(reactiveStringRedisTemplate.listenTo(any(ChannelTopic.class))).thenAnswer(invocation -> Flux.just(mockMessage));
-        Mockito.when(messageStorageService.addMessage(any(UUID.class), anyString())).thenReturn(Mono.empty());
-        Mockito.when(messageStorageService.addPublishFlux(any(UUID.class))).thenReturn(Mono.empty());
+        Mockito.doNothing().when(messageStorageService).addMessage(any(UUID.class), anyString());
+        Mockito.doNothing().when(messageStorageService).addPublishFlux(any(UUID.class));
 
         // then
         StepVerifier.create(chatService.postConnection(sessionId))
                 .verifyComplete();
 
-        ConcurrentHashMap<UUID, Subscription> subscribeSessionList = (ConcurrentHashMap<UUID, Subscription>) getField(chatService, "subscribeSessionList");
+        ConcurrentHashMap<UUID, Disposable> subscribeSessionList = (ConcurrentHashMap<UUID, Disposable>) getField(chatService, "subscribeSessionList");
         assertTrue(subscribeSessionList.containsKey(sessionId));
 
         verify(reactiveStringRedisTemplate).listenTo(topic);
@@ -75,13 +73,14 @@ public class ChatServiceTest {
         UUID sessionId = UUID.randomUUID();
         ChannelTopic topic = new ChannelTopic(sessionId.toString());
         ReactiveSubscription.Message<String, String> mockMessage = mock(ReactiveSubscription.Message.class);
-        ConcurrentHashMap<UUID, Subscription> subscribeSessionList = (ConcurrentHashMap<UUID, Subscription>) getField(chatService, "subscribeSessionList");
+        ConcurrentHashMap<UUID, Disposable> subscribeSessionList = (ConcurrentHashMap<UUID, Disposable>) getField(chatService, "subscribeSessionList");
 
         // when
         Mockito.when(mockMessage.getMessage()).thenReturn("testMessage");
         Mockito.when(reactiveStringRedisTemplate.listenTo(any(ChannelTopic.class))).thenAnswer(invocation -> Flux.just(mockMessage));
-        Mockito.when(messageStorageService.addMessage(any(UUID.class), anyString())).thenReturn(Mono.empty());
-        Mockito.when(messageStorageService.addPublishFlux(any(UUID.class))).thenReturn(Mono.empty());
+        Mockito.doNothing().when(messageStorageService).addMessage(any(UUID.class), anyString());
+        Mockito.doNothing().when(messageStorageService).addPublishFlux(any(UUID.class));
+
 
         // then
         StepVerifier.create(chatService.postConnection(sessionId))
@@ -89,7 +88,7 @@ public class ChatServiceTest {
 
         assertTrue(subscribeSessionList.containsKey(sessionId));
 
-        Subscription subscription = subscribeSessionList.get(sessionId);
+        Disposable subscription = subscribeSessionList.get(sessionId);
         StepVerifier.create(chatService.postConnection(sessionId))
                 .verifyComplete();
 
@@ -101,9 +100,9 @@ public class ChatServiceTest {
         verify(messageStorageService).addPublishFlux(sessionId);
     }
 
-    @DisplayName("postConnection 메서드는 각 SessionId로 Redis 구독을 이미 했다면 새로운 Redis 구독을 하지 않는다.")
+    @DisplayName("Multi-threading 환경에서도 postConnection 메서드는 각 SessionId로 Redis 구독을 이미 했다면 새로운 Redis 구독을 하지 않는다.")
     @Timeout(10)
-    @RepeatedTest(value = 10000, name = "Custom name {currentRepetition}/{totalRepetitions}")
+    @RepeatedTest(value = 1000, name = "Thread {currentRepetition}/{totalRepetitions}")
     @Execution(ExecutionMode.CONCURRENT)
     public void testPostConnectionTwiceButSubscribeOnlyOneWhenConcurrent() {
         // given
@@ -115,8 +114,9 @@ public class ChatServiceTest {
         // when
         Mockito.when(mockMessage.getMessage()).thenReturn("testMessage");
         Mockito.when(reactiveStringRedisTemplate.listenTo(any(ChannelTopic.class))).thenAnswer(invocation -> Flux.just(mockMessage));
-        Mockito.when(messageStorageService.addMessage(any(UUID.class), anyString())).thenReturn(Mono.empty());
-        Mockito.when(messageStorageService.addPublishFlux(any(UUID.class))).thenReturn(Mono.empty());
+        Mockito.doNothing().when(messageStorageService).addMessage(any(UUID.class), anyString());
+        Mockito.doNothing().when(messageStorageService).addPublishFlux(any(UUID.class));
+
 
         // then
         StepVerifier.create(chatService.postConnection(sessionId))

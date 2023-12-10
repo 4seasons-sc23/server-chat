@@ -33,15 +33,14 @@ public class MessageStorageService {
         this.billingService = billingService;
     }
 
-    public Mono<Void> addMessage(UUID sessionId, String message) {
+    public void addMessage(UUID sessionId, String message) {
         Queue<String> sessionQueue = messageQueues.computeIfAbsent(sessionId, k -> new ConcurrentLinkedQueue<>());
         sessionQueue.add(message);
-        return Mono.empty();
     }
 
-    public Mono<Void> addPublishFlux(UUID sessionId) {
+    public void addPublishFlux(UUID sessionId) {
         if (messagePublishFluxes.containsKey(sessionId)) {
-            return Mono.empty();
+            return;
         }
         Flux<Void> flux = Flux.interval(Duration.ofSeconds(1))
                 .flatMap(tick -> {
@@ -73,8 +72,6 @@ public class MessageStorageService {
         log.info("Create message publisher {}", sessionId);
 
         messagePublishFluxes.put(sessionId, flux.subscribe());
-
-        return Mono.empty();
     }
 
     public Flux<ServerSentEvent<List<String>>> streamMessages(UUID sessionId) {
