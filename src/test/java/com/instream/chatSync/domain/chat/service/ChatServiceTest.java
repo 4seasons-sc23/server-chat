@@ -103,7 +103,7 @@ public class ChatServiceTest {
 
     @DisplayName("postConnection 메서드는 각 SessionId로 Redis 구독을 이미 했다면 새로운 Redis 구독을 하지 않는다.")
     @Timeout(10)
-    @RepeatedTest(10000)
+    @RepeatedTest(value = 10000, name = "Custom name {currentRepetition}/{totalRepetitions}")
     @Execution(ExecutionMode.CONCURRENT)
     public void testPostConnectionTwiceButSubscribeOnlyOneWhenConcurrent() {
         // given
