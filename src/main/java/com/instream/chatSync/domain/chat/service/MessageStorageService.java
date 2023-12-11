@@ -23,7 +23,6 @@ public class MessageStorageService {
     private final ConcurrentHashMap<UUID, Queue<String>> messageQueues = new ConcurrentHashMap<>();
 
     private final ConcurrentHashMap<UUID, Disposable> messagePublishFluxes = new ConcurrentHashMap<>();
-
     private final ConcurrentHashMap<UUID, List<Sinks.Many<ServerSentEvent<List<String>>>>> sessionSockets = new ConcurrentHashMap<>();
 
     private final BillingService billingService;
