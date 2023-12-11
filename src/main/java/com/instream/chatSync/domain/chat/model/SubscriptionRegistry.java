@@ -1,4 +1,4 @@
-package com.instream.chatSync.domain.chat.domain.dto;
+package com.instream.chatSync.domain.chat.model;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.List;

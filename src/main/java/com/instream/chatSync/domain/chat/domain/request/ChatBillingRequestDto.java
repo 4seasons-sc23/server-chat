@@ -1,4 +1,4 @@
-package com.instream.chatSync.domain.chat.domain.dto.request;
+package com.instream.chatSync.domain.chat.domain.request;
 
 import java.util.UUID;
 import lombok.Builder;
