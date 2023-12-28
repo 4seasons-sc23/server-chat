@@ -2,11 +2,14 @@ package com.instream.chatSync.domain.chat.service;
 
 import com.instream.chatSync.domain.chat.domain.request.ChatBillingRequestDto;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.stereotype.Service;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
+import reactor.core.scheduler.Schedulers;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -27,6 +30,7 @@ public class MessageStorageService {
 
     private final BillingService billingService;
 
+    @Autowired
     public MessageStorageService(BillingService billingService) {
         this.billingService = billingService;
     }
@@ -40,12 +44,25 @@ public class MessageStorageService {
         if (messagePublishFluxes.containsKey(sessionId)) {
             return;
         }
-        Flux<Long> flux = Flux.interval(Duration.ofSeconds(1)).doOnNext(tick -> publishMessages(sessionId));
+        Flux<Long> flux = Flux.interval(Duration.ofMillis(24)).doOnNext(tick -> publishMessages(sessionId));
 
         messagePublishFluxes.computeIfAbsent(sessionId, key -> {
             log.info("Create message publisher {}", sessionId);
             return flux.subscribe();
         });
+    }
+
+    public void closePublishFlux(UUID sessionId) {
+        if (!messagePublishFluxes.containsKey(sessionId)) {
+            return;
+        }
+        Disposable disposable = messagePublishFluxes.get(sessionId);
+
+        if (disposable.isDisposed()) {
+            return;
+        }
+
+        disposable.dispose();
     }
 
     public Flux<ServerSentEvent<List<String>>> streamMessages(UUID sessionId) {
@@ -65,29 +82,41 @@ public class MessageStorageService {
             return;
         }
 
-        // 임시 메세지 저장소 생성
+        // 임시 메시지 저장소 생성 및 이벤트 생성
         List<String> tempMessages = new ArrayList<>(msgQueue);
-
-        // messageQueue를 비워줍니다. 채팅 편집 동시성을 높이기 위해서 원본은 사용하지 않습니다.
-        msgQueue.clear();
-
-        billingChat(sessionId, tempMessages);
-
-        // sessionId 해당하는 소켓에 메시지 전송
         ServerSentEvent<List<String>> event = ServerSentEvent.builder(tempMessages).build();
-        sessionSockets.getOrDefault(sessionId, new ArrayList<>())
-                .parallelStream()
-                .forEach(socket -> socket.tryEmitNext(event));
+        Mono<Void> deleteMessageFromMsgQueueMono = deleteMessagesFromQueue(msgQueue, tempMessages.size());
+        Mono<Void> billingChatMono = billingChat(sessionId, tempMessages);
+        Mono<Void> broadcastingChatMono = broadcastChat(sessionId, event);
 
-        // 임시 메시지 큐 메모리 해제
-        tempMessages.clear();
+        // 모든 Reactive 작업 실행 후, 임시 메시지 큐 메모리 해제
+        Mono.when(deleteMessageFromMsgQueueMono, billingChatMono, broadcastingChatMono)
+                .then(Mono.fromRunnable(tempMessages::clear))
+                .subscribe();
     }
 
-    private void billingChat(UUID sessionId, List<String> tempMessages) {
+    private Mono<Void> deleteMessagesFromQueue(Queue<String> msgQueue, int size) {
+        return Mono.fromRunnable(() -> {
+            for (int i = 0; i < size; i++) {
+                msgQueue.poll();
+            }
+        });
+    }
+
+    private Mono<Void> billingChat(UUID sessionId, List<String> tempMessages) {
         ChatBillingRequestDto billingRequestDto = ChatBillingRequestDto.builder()
                 .sessionId(sessionId)
                 .count(tempMessages.size())
                 .build();
-        billingService.postChatBilling(billingRequestDto).subscribe();
+        return billingService.postChatBilling(billingRequestDto).then();
     }
+
+    private Mono<Void> broadcastChat(UUID sessionId, ServerSentEvent<List<String>> event) {
+        return Flux.fromIterable(sessionSockets.getOrDefault(sessionId, new ArrayList<>()))
+                .parallel()
+                .runOn(Schedulers.parallel())
+                .doOnNext(socket -> socket.tryEmitNext(event))
+                .then();
+    }
+
 }

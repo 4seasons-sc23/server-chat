@@ -22,7 +22,6 @@ public class ChatService {
     private final ConcurrentHashMap<UUID, Subscription> subscribeSessionList = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<UUID, Subscription> endSessionList = new ConcurrentHashMap<>();
 
-
     @Autowired
     public ChatService(ReactiveRedisTemplate<String, String> reactiveStringRedisTemplate,
                        MessageStorageService messageStorageService) {
@@ -96,6 +95,8 @@ public class ChatService {
         if (endSessionList.containsKey(endSessionId)) {
             endSessionList.remove(endSessionId).cancel();
         }
+
+        messageStorageService.closePublishFlux(endSessionId);
     }
 }
 

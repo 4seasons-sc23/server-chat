@@ -48,6 +48,7 @@ public class ChatServiceTest {
 
     @BeforeEach
     public void setUp() {
+        // given
         chatMessageTopic = new ChannelTopic(sessionId.toString());
         closeTopic = new ChannelTopic(sessionId + "_END");
         subscribeSessionList = (ConcurrentHashMap<UUID, Subscription>) getField(chatService, "subscribeSessionList");
@@ -55,6 +56,11 @@ public class ChatServiceTest {
 
         subscribeSessionList.clear();
         endSessionList.clear();
+
+        // when
+        Mockito.doNothing().when(messageStorageService).addMessage(any(UUID.class), anyString());
+        Mockito.doNothing().when(messageStorageService).addPublishFlux(any(UUID.class));
+        Mockito.doNothing().when(messageStorageService).closePublishFlux(any(UUID.class));
     }
 
     @Test
@@ -71,8 +77,6 @@ public class ChatServiceTest {
         Mockito.when(mockCloseMessage.getMessage()).thenReturn("testMessage");
         Mockito.when(reactiveStringRedisTemplate.listenTo(chatMessageTopic)).thenAnswer(invocation -> Flux.just(mockChatMessage));
         Mockito.when(reactiveStringRedisTemplate.listenTo(closeTopic)).thenAnswer(invocation -> Flux.empty());
-        Mockito.doNothing().when(messageStorageService).addMessage(any(UUID.class), anyString());
-        Mockito.doNothing().when(messageStorageService).addPublishFlux(any(UUID.class));
 
         // then
         StepVerifier.create(chatService.postConnection(sessionId))
@@ -98,19 +102,18 @@ public class ChatServiceTest {
         Mockito.when(mockCloseMessage.getMessage()).thenReturn("testMessage");
         Mockito.when(reactiveStringRedisTemplate.listenTo(chatMessageTopic)).thenAnswer(invocation -> Flux.just(mockChatMessage));
         Mockito.when(reactiveStringRedisTemplate.listenTo(closeTopic)).thenAnswer(invocation -> Flux.just(mockCloseMessage).delayElements(Duration.ofSeconds(1)));
-        Mockito.doNothing().when(messageStorageService).addMessage(any(UUID.class), anyString());
-        Mockito.doNothing().when(messageStorageService).addPublishFlux(any(UUID.class));
 
         // then
         StepVerifier.create(chatService.postConnection(sessionId))
                 .verifyComplete();
 
-        Thread.sleep(2000);
+        Thread.sleep(1500);
 
         assertFalse(subscribeSessionList.containsKey(sessionId));
         assertFalse(endSessionList.containsKey(sessionId));
 
         verifyThreadSafeResult(sessionId, chatMessageTopic, closeTopic);
+        verify(messageStorageService).closePublishFlux(sessionId);
     }
 
     @Test
@@ -127,8 +130,6 @@ public class ChatServiceTest {
         Mockito.when(mockCloseMessage.getMessage()).thenReturn("testMessage");
         Mockito.when(reactiveStringRedisTemplate.listenTo(chatMessageTopic)).thenAnswer(invocation -> Flux.just(mockChatMessage));
         Mockito.when(reactiveStringRedisTemplate.listenTo(closeTopic)).thenAnswer(invocation -> Flux.just(mockCloseMessage));
-        Mockito.doNothing().when(messageStorageService).addMessage(any(UUID.class), anyString());
-        Mockito.doNothing().when(messageStorageService).addPublishFlux(any(UUID.class));
 
         // then
         StepVerifier.create(chatService.postConnection(sessionId))
@@ -138,6 +139,7 @@ public class ChatServiceTest {
         assertFalse(endSessionList.containsKey(sessionId));
 
         verifyThreadSafeResult(sessionId, chatMessageTopic, closeTopic);
+        verify(messageStorageService).closePublishFlux(sessionId);
     }
 
     @Test
@@ -156,9 +158,6 @@ public class ChatServiceTest {
         Mockito.when(mockCloseMessage.getMessage()).thenReturn("testMessage");
         Mockito.when(reactiveStringRedisTemplate.listenTo(chatMessageTopic)).thenAnswer(invocation -> Flux.just(mockChatMessage));
         Mockito.when(reactiveStringRedisTemplate.listenTo(closeTopic)).thenAnswer(invocation -> Flux.empty());
-        Mockito.doNothing().when(messageStorageService).addMessage(any(UUID.class), anyString());
-        Mockito.doNothing().when(messageStorageService).addPublishFlux(any(UUID.class));
-
 
         // then
         // 한 sessionId에 대해 1회 구독
@@ -184,9 +183,9 @@ public class ChatServiceTest {
         verifyThreadSafeResult(sessionId, chatMessageTopic, closeTopic);
     }
 
-    @DisplayName("Multi-threading 환경에서도 postConnection 메서드는 각 SessionId로 Redis 구독을 이미 했다면 새로운 Redis 구독을 하지 않는다.")
+    @DisplayName("2,000개의 Multi-threading 환경에서도 postConnection 메서드는 각 SessionId로 Redis 구독을 이미 했다면 새로운 Redis 구독을 하지 않는다.")
     @Timeout(10)
-    @RepeatedTest(value = 1000, name = "Thread {currentRepetition}/{totalRepetitions}")
+    @RepeatedTest(value = 2000, name = "Thread {currentRepetition}/{totalRepetitions}")
     @Execution(ExecutionMode.CONCURRENT)
     public void testPostConnectionIsSafeWhenConcurrent() {
         // given
@@ -202,8 +201,6 @@ public class ChatServiceTest {
         Mockito.when(mockCloseMessage.getMessage()).thenReturn("testMessage");
         Mockito.when(reactiveStringRedisTemplate.listenTo(chatMessageTopic)).thenAnswer(invocation -> Flux.just(mockChatMessage));
         Mockito.when(reactiveStringRedisTemplate.listenTo(closeTopic)).thenAnswer(invocation -> Flux.empty());
-        Mockito.doNothing().when(messageStorageService).addMessage(any(UUID.class), anyString());
-        Mockito.doNothing().when(messageStorageService).addPublishFlux(any(UUID.class));
 
         // then
         // 한 sessionId에 대해 1회 구독
