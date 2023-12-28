@@ -18,7 +18,6 @@ import org.springframework.test.web.reactive.server.FluxExchangeResult;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.core.publisher.Sinks;
 import reactor.test.StepVerifier;
 
 import java.time.LocalDateTime;
@@ -28,7 +27,7 @@ import java.util.function.Predicate;
 
 @WebFluxTest
 @Import({WebConfig.class, ChatConfig.class, ChatHandler.class})
-@DisplayName("Chat Router Configuration Tests")
+@DisplayName("ChatRouterConfig Tests")
 public class ChatRouterConfigTest {
     @Autowired
     private ObjectMapper objectMapper;
@@ -40,7 +39,7 @@ public class ChatRouterConfigTest {
     private ChatService chatService;
 
     @Test
-    @DisplayName("GET /api/v1/chats/sse-connect/{sessionId} 호출하고 3개의 채팅 메세지를 받았을 때")
+    @DisplayName("GET /api/v1/chats/sse-connect/{sessionId} 호출하고 3개의 채팅 메세지를 받았을 때, SSE 소켓을 올바르게 받고 3개의 채팅 메세지를 받을 수 있어야 한다.")
     public void getSseSocketWithMessages() {
         // Given
         UUID sessionId = UUID.randomUUID();

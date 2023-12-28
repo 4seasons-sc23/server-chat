@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @WebFluxTest
 @Import(ChatHandler.class)
-@DisplayName("Chat Router Configuration Tests")
+@DisplayName("ChatHandler Tests")
 public class ChatHandlerTest {
     @Autowired
     private ChatHandler chatHandler;
@@ -47,7 +47,7 @@ public class ChatHandlerTest {
     }
 
     @Test
-    @DisplayName("GET /api/v1/chats/sse-connect/{sessionId} 호출하고 3개의 채팅 메세지를 보냈을 때")
+    @DisplayName("GET /api/v1/chats/sse-connect/{sessionId} 호출하고 3개의 채팅 메세지를 보냈을 때, SSE 소켓을 올바르게 받고 3개의 채팅 메세지를 받을 수 있어야 한다.")
     public void responseSseSocketWithMessages() {
         // Given
         UUID sessionId = UUID.randomUUID();
@@ -77,7 +77,7 @@ public class ChatHandlerTest {
     }
 
     @Test
-    @DisplayName("WebTestClient를 사용하지 않고 테스트를 진행하려고 하면 PathVariable 파싱이 안되는 에러가 발생")
+    @DisplayName("WebTestClient를 사용하지 않고 테스트를 진행하려고 하면 PathVariable 파싱이 안되는 에러가 발생한다.")
     public void throwIllegalArgumentExceptionWhenNotUsingWebTestClient() {
         // Given
         UUID sessionId = UUID.randomUUID();
